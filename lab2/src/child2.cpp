@@ -1,5 +1,5 @@
-#include "child2.h"
-
+#include "utils.h"
+#include <fstream>
 
 int main() {
     size_t old_size;
@@ -7,6 +7,8 @@ int main() {
 
     char old_string[old_size + 1];
     read(STDIN_FILENO, old_string, sizeof(char) * (old_size + 1));
+
+
     char new_string[old_size + 1];
     int j = 0;
     char last_ch = '\0';

@@ -10,8 +10,8 @@ enum PipeEnd {
     WRITE_END
 };
 
-void createPipe(int fd[]);
-void Get_fork_error();
-void Get_exec_error(std::string const &executable_file);
+void CreatePipe(int fd[]);
+void GetForkError();
+void GetExecError(std::string const &executable_file);
 
 #endif //LAB2_UTILS_H

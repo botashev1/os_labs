@@ -5,7 +5,9 @@
 #include <iostream>
 #include "utils.h"
 #include <fstream>
+#include <vector>
 
-std::string ParentRoutine(char const * const pathToChild1, char const * const pathToChild2, std::string &s);
+std::vector <std::string> ParentRoutine(char const *pathToChild1, char const *pathToChild2,
+                                        std::vector <std::string> &input);
 
 #endif //LAB2_PARENT_H
