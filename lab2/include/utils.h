@@ -12,6 +12,7 @@ enum PipeEnd {
 
 void CreatePipe(int fd[]);
 void GetForkError();
-void GetExecError(std::string const &executable_file);
+void MakeDup2(int oldFd, int newFd);
+void GetExecError(std::string const &executableFile);
 
 #endif //LAB2_UTILS_H

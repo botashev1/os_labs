@@ -6,10 +6,10 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
 
     std::vector<std::string> output;
 
-    int FirstPipe[2];
-    CreatePipe(FirstPipe);
-    int PipeBetweenChildren[2];
-    CreatePipe(PipeBetweenChildren);
+    int firstPipe[2];
+    CreatePipe(firstPipe);
+    int pipeBetweenChildren[2];
+    CreatePipe(pipeBetweenChildren);
 
     int pid = fork();
 
@@ -17,62 +17,62 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
 
     if (pid == 0) {
 
-        close(FirstPipe[WRITE_END]);
-        close(PipeBetweenChildren[READ_END]);
+        close(firstPipe[WRITE_END]);
+        close(pipeBetweenChildren[READ_END]);
 
-        dup2(FirstPipe[READ_END], STDIN_FILENO);
-        dup2(PipeBetweenChildren[WRITE_END], STDOUT_FILENO);
+        MakeDup2(firstPipe[READ_END], STDIN_FILENO);
+        MakeDup2(pipeBetweenChildren[WRITE_END], STDOUT_FILENO);
 
         if (execl(pathToChild1, nullptr) == -1) {
             GetExecError(pathToChild1);
         }
-        close(FirstPipe[READ_END]);
-        close(FirstPipe[WRITE_END]);
+        close(firstPipe[READ_END]);
+        close(firstPipe[WRITE_END]);
     } else if (pid == -1) {
         GetForkError();
     } else {
-        close(FirstPipe[READ_END]);
+        close(firstPipe[READ_END]);
         for (const std::string & s : input) {
             std::string s_tmp = s + "\n";
-            write(FirstPipe[WRITE_END], s_tmp.c_str(),  s_tmp.size());
+            write(firstPipe[WRITE_END], s_tmp.c_str(), s_tmp.size());
         }
-        close(FirstPipe[WRITE_END]);
+        close(firstPipe[WRITE_END]);
 
-        int SecondPipe[2];
-        CreatePipe(SecondPipe);
+        int secondPipe[2];
+        CreatePipe(secondPipe);
 
         pid = fork();
 
         if (pid == 0) {
-            close(SecondPipe[READ_END]);
-            close(PipeBetweenChildren[WRITE_END]);
+            close(secondPipe[READ_END]);
+            close(pipeBetweenChildren[WRITE_END]);
 
-            dup2(PipeBetweenChildren[READ_END], STDIN_FILENO);
-            dup2(SecondPipe[WRITE_END], STDOUT_FILENO);
+            MakeDup2(pipeBetweenChildren[READ_END], STDIN_FILENO);
+            MakeDup2(secondPipe[WRITE_END], STDOUT_FILENO);
 
             if (execl(pathToChild2, nullptr) == -1) {
                 GetExecError(pathToChild2);
             }
-            close(PipeBetweenChildren[READ_END]);
-            close(SecondPipe[WRITE_END]);
+            close(pipeBetweenChildren[READ_END]);
+            close(secondPipe[WRITE_END]);
         } else if (pid == -1) {
             GetForkError();
         } else {
-            close(SecondPipe[WRITE_END]);
-            close(PipeBetweenChildren[WRITE_END]);
-            close(PipeBetweenChildren[READ_END]);
+            close(secondPipe[WRITE_END]);
+            close(pipeBetweenChildren[WRITE_END]);
+            close(pipeBetweenChildren[READ_END]);
 
-            while(wait(nullptr) > 0);
+            wait(nullptr);
 
             for (int i = 0; i < input.size(); i++) {
                 std::string res;
                 char ch;
-                while (read(SecondPipe[READ_END], &ch, 1) && ch != '\n'){
+                while (read(secondPipe[READ_END], &ch, 1) && ch != '\n'){
                     res += ch;
                 }
                 output.push_back(res);
             }
-            close(SecondPipe[READ_END]);
+            close(secondPipe[READ_END]);
         }
     }
     return output;

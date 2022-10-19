@@ -2,19 +2,21 @@
 
 
 int main() {
-    std::string old_string;
-    while (getline(std::cin, old_string)) {
-        std::string new_string;
-        char last_ch = '\0';
-        for (char ch: old_string) {
-            if (ch == ' ' && last_ch != ' ') {
-                new_string += ch;
-            } else if (ch != ' ') {
-                new_string += ch;
+    std::string s;
+    while (getline(std::cin, s)) {
+        int j = 0;
+        char lastCh = '\0';
+        for (int i = 0; i < s.size(); i++){
+            if (lastCh != ' ' || s[i] != ' '){
+                s[j] = s[i];
+                j++;
             }
-            last_ch = ch;
+            lastCh = s[i];
         }
-        std::cout << new_string << '\n';
+        for (int i = 0; i < j; i++) {
+            std::cout << s[i];
+        }
+        std::cout << '\n';
     }
     return 0;
 }
