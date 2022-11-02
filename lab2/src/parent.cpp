@@ -23,7 +23,7 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
         MakeDup2(firstPipe[READ_END], STDIN_FILENO);
         MakeDup2(pipeBetweenChildren[WRITE_END], STDOUT_FILENO);
 
-        if (execl(pathToChild1, nullptr) == -1) {
+        if (execl(pathToChild1, "", nullptr) == -1) {
             GetExecError(pathToChild1);
         }
         close(firstPipe[READ_END]);
@@ -50,7 +50,7 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
             MakeDup2(pipeBetweenChildren[READ_END], STDIN_FILENO);
             MakeDup2(secondPipe[WRITE_END], STDOUT_FILENO);
 
-            if (execl(pathToChild2, nullptr) == -1) {
+            if (execl(pathToChild2, "", nullptr) == -1) {
                 GetExecError(pathToChild2);
             }
             close(pipeBetweenChildren[READ_END]);
@@ -64,7 +64,7 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
 
             wait(nullptr);
 
-            for (int i = 0; i < input.size(); i++) {
+            for (size_t i = 0; i < input.size(); i++) {
                 std::string res;
                 char ch;
                 while (read(secondPipe[READ_END], &ch, 1) && ch != '\n'){
