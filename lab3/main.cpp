@@ -14,11 +14,11 @@ int main() {
     srandom(time(nullptr));
 
     std::vector<pthread_t> p(threadCount);
-    pthread_mutex_t mutex;
-    pthread_mutex_init(&mutex, nullptr);
-    Args *a = new Args{r, total, success, (limit + threadCount - 1) / threadCount, mutex};
+    std::vector<Args> a;
+
     for (int i = 0; i < threadCount; i++) {
-        pthread_create(&p[i], nullptr, &CalculateArea, a);
+        a.push_back({r, total, success, (limit + threadCount - 1) / threadCount});
+        pthread_create(&p[i], nullptr, &CalculateArea, &a[i]);
     }
 
     for (int i = 0; i < threadCount; i++) {
@@ -27,7 +27,14 @@ int main() {
 
     unsigned end_time = clock(); // конечное время
     unsigned search_time = end_time - start_time; // искомое время
-    std::cout << a->success * 4 * r * r / (ld) a->total << " " << search_time / (ld) 1000000;
-    pthread_mutex_destroy(&mutex);
+
+    int res_success = 0;
+    int res_total = 0;
+    for (int i = 0; i < threadCount; i++){
+        res_success += a[i].success;
+        res_total += a[i].total;
+    }
+
+    std::cout << res_success * 4 * r * r / (ld) res_total << " " << search_time / (ld) 1000000;
     return 0;
 }
