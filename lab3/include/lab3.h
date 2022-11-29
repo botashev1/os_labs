@@ -1,7 +1,8 @@
 #ifndef OS_LABS_LAB3_H
 #define OS_LABS_LAB3_H
 
-#define ld long double
+
+bool InCircle(double x, double y, double r);
 
 void *CalculateArea(void *args);
 

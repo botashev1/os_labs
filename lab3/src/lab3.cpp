@@ -2,7 +2,7 @@
 #include "utils.h"
 
 
-bool InCircle(ld x, ld y, ld r) {
+bool InCircle(double x, double y, double r) {
     if (x * x + y * y <= r * r + EPS) {
         return true;
     }
@@ -13,8 +13,8 @@ void *CalculateArea(void *args) {
     auto *a = (struct Args *) args;
     for (int i = 0; i < a->limit; i++) {
         a->total++;
-        a->success += InCircle(GetRandomNumber(-a->r, a->r),
-                               GetRandomNumber(-a->r, a->r),
+        a->success += InCircle(GetRandomNumber(a->r),
+                               GetRandomNumber(a->r),
                                a->r);
     }
     return a;

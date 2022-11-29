@@ -4,15 +4,14 @@
 #include <ctime>
 #include <random>
 
-#define ld long double
 
-const ld EPS = 1e-14;
+const double EPS = 1e-14;
 
 struct Args {
-    ld r;
+    double r;
     int total, success, limit;
 };
 
-ld GetRandomNumber(ld min, ld max);
+double GetRandomNumber(double max);
 
 #endif //OS_LABS_UTILS_H

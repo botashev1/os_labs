@@ -1,6 +1,6 @@
 #include "utils.h"
 
 
-ld GetRandomNumber(ld min, ld max) {
-    return min + (ld) (random() % (long) 1e5) / 1e5 * (max - min);
+double GetRandomNumber(double max) {
+    return -max + (double) (random() % (long) 1e5) / 1e5 * max * 2;
 }
