@@ -5,22 +5,20 @@
 #include <cmath>
 
 
-const double TEST_EPS = 1e-14;
-
 TEST(ThirdLabTests, GetRandomNumberCorrectResults) {
-    EXPECT_LE(abs(GetRandomNumber(0)), 0 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(0)), 0);
 
-    EXPECT_LE(abs(GetRandomNumber(1)), 1 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(1)), 1);
 
-    EXPECT_LE(abs(GetRandomNumber(1000000)), 1000000 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(1000000)), 1000000);
 
-    EXPECT_LE(abs(GetRandomNumber(99999.999)), 99999.999 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(99999.999)), 99999.999);
 
-    EXPECT_LE(abs(GetRandomNumber(0.0001)), 0.0001 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(0.0001)), 0.0001);
 
-    EXPECT_LE(abs(GetRandomNumber(7)), 7 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(7)), 7);
 
-    EXPECT_LE(abs(GetRandomNumber(123.4567)), 123.4567 + TEST_EPS);
+    EXPECT_LE(abs(GetRandomNumber(123.4567)), 123.4567);
 }
 
 
