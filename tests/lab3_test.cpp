@@ -41,7 +41,3 @@ TEST(ThirdLabTests, InCircleCorrectResults) {
 
     EXPECT_EQ(InCircle(1234.5678, 9876.54321, 99999999), true);
 }
-
-//TEST(ThirdLabTest, PerfomanceTest) {
-//    EXPECT_GE(singleThread, multiThread);
-//}
