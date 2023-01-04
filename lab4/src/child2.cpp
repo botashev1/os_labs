@@ -1,5 +1,4 @@
 #include "utils.h"
-#include <fstream>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -16,8 +15,8 @@ int main(int argc, char *argv[]) {
     makeSharedMemoryOpen(semInFd, argv[01], O_CREAT | O_RDWR, S_IRWXU);
 
     int writeFd, semOutFd;
-    makeSharedMemoryOpen(readFd, argv[2], O_CREAT | O_RDWR, S_IRWXU);
-    makeSharedMemoryOpen(semInFd, argv[3], O_CREAT | O_RDWR, S_IRWXU);
+    makeSharedMemoryOpen(writeFd, argv[2], O_CREAT | O_RDWR, S_IRWXU);
+    makeSharedMemoryOpen(semOutFd, argv[3], O_CREAT | O_RDWR, S_IRWXU);
 
 
     char *input, *output;
@@ -28,9 +27,14 @@ int main(int argc, char *argv[]) {
     makeMmap((void **) &semOutput, PROT_READ | PROT_WRITE, MAP_SHARED, semOutFd);
 
 
+
+    char *ptr = input;
+
+
     while (true) {
         sem_wait(semInput);
-        std::string s = std::string(input);
+        std::string s = std::string(ptr);
+        ptr = ptr + s.size() + 1;
         if (s.empty()) {
             break;
         }
@@ -49,10 +53,12 @@ int main(int argc, char *argv[]) {
             res += s[i];
         }
 
-        sprintf((char *) output, "%s\n", res.c_str());
+        sprintf((char *) output, "%s", res.c_str());
         sem_post(semOutput);
     }
 
+    sprintf((char *) output, "%s", "");
+    sem_post(semOutput);
 
     makeMunmap(input);
     makeMunmap(output);

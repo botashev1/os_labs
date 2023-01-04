@@ -41,17 +41,15 @@ void makeShmUnlink(std::string name) {
     }
 }
 
-void createShm(int &sfd, int &semInFd, int &semOutFd, const std::string &shmName,
-               const std::string &semaphoreInputName, const std::string &semaphoreOutputName) {
+void createShm(int &sfd, int &semInFd, const std::string &shmName,
+               const std::string &semap) {
     makeSharedMemoryOpen(sfd, shmName, O_CREAT | O_RDWR, S_IRWXU);
-    makeSharedMemoryOpen(semInFd, semaphoreInputName, O_CREAT | O_RDWR, S_IRWXU);
-    makeSharedMemoryOpen(semOutFd, semaphoreOutputName, O_CREAT | O_RDWR, S_IRWXU);
+    makeSharedMemoryOpen(semInFd, semap, O_CREAT | O_RDWR, S_IRWXU);
 }
 
-void makeFtruncateShm(int &sfd, int &semInFd, int &semOutFd){
+void makeFtruncateShm(int &sfd, int &semInFd){
     ftruncate(sfd, getpagesize());
     ftruncate(semInFd, getpagesize());
-    ftruncate(semOutFd, getpagesize());
 }
 
 void GetForkError() {
