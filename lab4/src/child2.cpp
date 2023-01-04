@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 
     int readFd, semInFd;
     makeSharedMemoryOpen(readFd, argv[0], O_CREAT | O_RDWR, S_IRWXU);
-    makeSharedMemoryOpen(semInFd, argv[01], O_CREAT | O_RDWR, S_IRWXU);
+    makeSharedMemoryOpen(semInFd, argv[1], O_CREAT | O_RDWR, S_IRWXU);
 
     int writeFd, semOutFd;
     makeSharedMemoryOpen(writeFd, argv[2], O_CREAT | O_RDWR, S_IRWXU);
@@ -28,14 +28,13 @@ int main(int argc, char *argv[]) {
 
 
 
-    char *ptr = input;
-
+    char *ptrIn = input, *ptrOut = output;
 
     while (true) {
         sem_wait(semInput);
-        std::string s = std::string(ptr);
-        ptr = ptr + s.size() + 1;
-        if (s.empty()) {
+        std::string s = std::string(ptrIn);
+        ptrIn += s.size() + 1;
+        if (s.empty() || s == " ") {
             break;
         }
         int j = 0;
@@ -53,11 +52,12 @@ int main(int argc, char *argv[]) {
             res += s[i];
         }
 
-        sprintf((char *) output, "%s", res.c_str());
+        sprintf((char *) ptrOut, "%s", res.c_str());
+        ptrOut += res.size() + 1;
         sem_post(semOutput);
     }
 
-    sprintf((char *) output, "%s", "");
+    sprintf((char *) ptrOut, "%s", "");
     sem_post(semOutput);
 
     makeMunmap(input);

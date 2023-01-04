@@ -25,14 +25,13 @@ int main(int argc, char *argv[]) {
     makeMmap((void **) &semInput, PROT_READ | PROT_WRITE, MAP_SHARED, semInFd);
     makeMmap((void **) &semOutput, PROT_READ | PROT_WRITE, MAP_SHARED, semOutFd);
 
-    char *ptr = input;
+    char *ptrIn = input, *ptrOut = output;
+
 
     while (true) {
-        int res;
-        sem_getvalue(semOutput, &res);
         sem_wait(semInput);
-        std::string s = std::string(ptr);
-        ptr += s.size() + 1;
+        std::string s = std::string(ptrIn);
+        ptrIn += s.size() + 1;
         if (s.empty()) {
             break;
         }
@@ -40,11 +39,11 @@ int main(int argc, char *argv[]) {
             ch = toupper(ch);
         }
 
-        sprintf((char *) output, "%s", s.c_str());
+        sprintf((char *) ptrOut, "%s", s.c_str());
+        ptrOut += s.size() + 1;
         sem_post(semOutput);
     }
-
-    sprintf((char *) ptr, "%s", "");
+    sprintf((char *) ptrOut, "%s", "");
     sem_post(semOutput);
 
     makeMunmap(input);

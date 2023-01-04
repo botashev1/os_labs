@@ -48,7 +48,7 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
         makeMmap((void **) &ptr, PROT_READ | PROT_WRITE, MAP_SHARED, sfd1);
         for (const std::string &s: input) {
             sprintf((char *) ptr, "%s", s.c_str());
-            ptr = ptr + s.size() + 1;
+            ptr += s.size() + 1;
             sem_post(sem1);
         }
         sprintf((char *) ptr, "%s", "");
@@ -64,14 +64,14 @@ std::vector<std::string> ParentRoutine(char const *pathToChild1, char const *pat
 
         pid = fork();
 
-        if (pid == 0) {
+        if (pid == 0) { // child2
             if (execl(pathToChild2, THIRD_SHM_NAME, THIRD_SEMAP,
                       SECOND_SHM_NAME, SECOND_SEMAP, nullptr) == -1) {
                 GetExecError(pathToChild2);
             }
         } else if (pid == -1) {
             GetForkError();
-        } else {
+        } else { // parent
             char *ptr2;
             makeMmap((void **) &ptr2, PROT_READ | PROT_WRITE, MAP_SHARED, sfd2);
 
