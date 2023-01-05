@@ -19,11 +19,10 @@ int primeCount(int a, int b) {
     return res;
 }
 
-int *sort(int *array, int low, int high) {
+std::vector <int> sort(std::vector <int>array, int low, int high) {
     int i = low;
     int j = high;
     int pivot = array[(i + j) / 2];
-    int temp;
 
     while (i <= j)
     {
@@ -33,17 +32,15 @@ int *sort(int *array, int low, int high) {
             j--;
         if (i <= j)
         {
-            temp = array[i];
-            array[i] = array[j];
-            array[j] = temp;
+            std::swap(array[i], array[j]);
             i++;
             j--;
         }
     }
     if (j > low)
-        sort(array, low, j);
+        array = sort(array, low, j);
     if (i < high)
-        sort(array, i, high);
+        array = sort(array, i, high);
 
     return array;
 }

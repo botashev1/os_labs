@@ -18,11 +18,11 @@ int main() {
         } else if (command == 2) {
             int n;
             std::cin >> n;
-            int arr[n];
+            std::vector <int> arr(n);
             for (int i = 0; i < n; i++){
                 std::cin >> arr[i];
             }
-            sort(arr, 0, n);
+            arr = sort(arr, 0, n);
 
             for (int i = 0; i < n; i++){
                 std::cout << arr[i] << " ";

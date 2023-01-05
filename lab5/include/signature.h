@@ -7,10 +7,11 @@
 #include <cstddef>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 extern "C" {
     int primeCount(int a, int b);
-    int *sort(int *array, int low, int high);
+    std::vector <int> sort(std::vector <int> array, int low, int high);
 }
 
 #endif /* SIGNATURE */
