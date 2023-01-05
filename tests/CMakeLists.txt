@@ -51,4 +51,14 @@ target_include_directories(lab4_test PRIVATE ../lab4/include)
 
 add_test(lab4_test lab4_test)
 
+
+# LAB 5 tests
+add_executable(lab5_test lab5_test.cpp ../lab5/include/signature.h ../lab5/src/implem1.cpp)
+
+target_link_libraries(lab5_test PRIVATE GTest::GTest)
+target_include_directories(lab5_test PRIVATE ../lab5/include)
+
+add_test(lab5_test lab5_test)
+
+
 project(tests)
