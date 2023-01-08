@@ -1,0 +1,551 @@
+
+\documentclass[pdf, unicode, 12pt, a4paper,oneside,fleqn]{article}
+\usepackage{graphicx}
+\usepackage{upquote}
+\graphicspath{{img/}}
+\usepackage{log-style}
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \bfseries
+
+        {\Large Московский авиационный институт\\ (национальный исследовательский университет)}
+        
+        \vspace{48pt}
+        
+        {\large Факультет информационных технологий и прикладной математики}
+        
+        \vspace{36pt}
+        
+        {\large Кафедра вычислительной математики и~программирования}
+        
+        \vspace{48pt}
+        
+        Лабораторная работа \textnumero 6-8 по курсу \enquote{Операционные системы}
+
+        \vspace{48pt}
+
+        Управлении серверами сообщений. Применение отложенных вычислений. Интеграция программных систем друг с другом
+        
+    \end{center}
+    
+    \vspace{125pt}
+    
+    \begin{flushright}
+    \begin{tabular}{rl}
+    Студент: & А.\,Р. Боташев \\
+    Преподаватель: & Е.\,С. Миронов \\
+    Группа: & М8О-201Б-21 \\
+    Вариант: & 23 \\
+    Дата: & \\
+    Оценка: & \\
+    Подпись: & \\
+    \end{tabular}
+    \end{flushright}
+    
+    \vfill
+    
+    \begin{center}
+    \bfseries
+    Москва, \the\year
+    \end{center}
+\end{titlepage}
+    
+\pagebreak
+
+\section{Постановка задачи}
+
+Реализовать распределенную систему по асинхронной обработке запросов. 
+В данной распределенной системе должно существовать 2 вида узлов: 
+«управляющий» и «вычислительный». Необходимо объединить данные узлы в 
+соответствии с той топологией, которая определена вариантом. Связь между
+узлами необходимо осуществить при помощи технологии очередей сообщений.
+Также в данной системе необходимо предусмотреть проверку доступности
+узлов в соответствии с вариантом. При убийстве («kill -9») любого
+вычислительного узла система должна пытаться максимально сохранять
+свою работоспособность, а именно все дочерние узлы убитого узла могут стать
+недоступными, но родительские узлы должны сохранить свою работоспособность.
+
+Управляющий узел отвечает за ввод команд от пользователя и отправку этих команд
+на вычислительные узлы.
+
+Топология \--- дерево общего вида, проверка \--- доступности ping id, вычислительная
+программа \--- поиск подстоки в строке.
+
+\section{Общие сведения о программе}
+Программа написанна на языке Си в Unix подобной операционной системе на базе ядра Linux.
+В программе используется очередь сообщений ZeroMQ.
+
+Программа поддерживает следующие команды:
+\begin{enumerate}
+    \item create [id] [parent] \--- создать узел с id [id], родителем которого является узел с id [parent].
+    \item remove [id] \--- удаляет узел с данным id.
+    \item exec [id] [string] [pattern] \--- запускает на узле [id] поиск подстроки [pattern] в строке [string].
+    \item ping [id] \--- проверка доступности узда [id].
+\end{enumerate}
+
+Выход из программы происзодит при окончании ввода, то есть при нажатии CTRL+D.
+
+\section{Общий метод и алгоритм решения}
+
+В программе используется тип соединения Request-Response. Узлы прередают
+друг другу информацию при помощи очереди сообщений.
+
+Все функции описанны либо для самого целевого узла либо его родителя. А для 
+доставки сообщений создан метод Send(). Этот методо проверяет на доступность всех детей,
+если они доступны то отправляет им сообщение. В случае если детей нет, то он возвращает родителю
+ошибку об не нахождении узла. Когда родитель получает ответы от всех детей он 
+отправляет на уровень выше либо единственный отличающийся от ошибки поиска, либо саму ошибку поиска.
+И так пока ответ не достигнет отправителя.
+
+Если команда обращается к несуществующему узлу, то мы сразу возвращаем ошибку. Для этого у
+нас есть множество созданных узлов.
+
+При создании мы просо форкаем родитель и передаем ребенку данные для связи с ним.
+
+При удалении же мы передаем все детям также сигнал об удалении и рекурсивно 
+формируем список всех своих потомков. В который по итогу добавляем себя и отправляем родителю.
+По итогу клиент удаляет все элименты этого списка из множества созданных узлов.
+
+Для проверки доступности мы посылаем ребенку сообщение, и если за 3 секунды не получаем ответа, то считаем узел не доступным.
+
+Поиск подстроки в строке происходит с помощью наивного алгорима поиска из стандарной библиотеки.
+
+\section{Листинг программы}
+
+{\large\textbf{net\_func.hpp}}
+
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <iostream>
+#include <zmq.hpp>
+#include <sstream>
+#include <string>
+
+namespace my_net{
+    #define MY_PORT 4040
+    #define MY_IP "tcp://127.0.0.1:"
+
+    int bind(zmq::socket_t *socket, int id){
+        int port  = MY_PORT + id;
+        while(true){
+            std::string adress = MY_IP  + std::to_string(port);
+            try{
+                socket->bind(adress);
+                break;
+            } catch(...){
+                port++;
+            }    
+        }
+        return port;
+    }
+
+    void connect(zmq::socket_t *socket, int port){
+        std::string adress = MY_IP + std::to_string(port);
+        socket->connect(adress);
+    }
+
+    void unbind(zmq::socket_t *socket, int port) {
+        std::string adress = MY_IP + std::to_string(port);
+        socket->unbind(adress);
+    }
+
+    void disconnect(zmq::socket_t *socket, int port) {
+        std::string adress = MY_IP + std::to_string(port);
+        socket->disconnect(adress);
+    }
+
+    void send_message(zmq::socket_t *socket, const std::string msg) {
+        zmq::message_t message(msg.size());
+        memcpy(message.data(), msg.c_str(), msg.size());
+        try{
+            socket->send(message);
+        }catch(...){}
+    }
+
+    std::string reseave(zmq::socket_t *socket){
+        zmq::message_t message;
+        bool success = true;
+        try{
+            socket->recv(&message,0);
+        }catch(...){
+            success = false;
+        }
+        if(!success || message.size() == 0){;
+            throw -1;
+        }
+        std::string str(static_cast<char*>(message.data()), message.size());
+        return str;
+    }
+}
+\end{lstlisting}
+
+{\large\textbf{node.hpp}}
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+#include "net_func.hpp"
+#include <sstream>
+#include <unordered_map>
+#include "unistd.h"
+
+
+class Node{
+private:
+    zmq::context_t context;
+public:
+    std::unordered_map<int,zmq::socket_t*> children;
+    std::unordered_map<int,int> children_port;
+    zmq::socket_t parent;
+    int parent_port;
+
+    int id;
+    Node(int _id , int _parent_port = -1):   id(_id),
+                                            parent(context,ZMQ_REP),
+                                            parent_port(_parent_port){
+        if(_id != -1){
+            my_net::connect(&parent,_parent_port);
+        }
+    }
+
+    std::string Ping_child(int _id){
+        std::string ans = "Ok: 0";
+        ans = "Ok: 0";
+        if(_id == id){
+            ans = "Ok: 1";
+            return ans;
+        } else if(children.find(_id) != children.end()){
+            std::string msg = "ping " + std::to_string(_id);
+            my_net::send_message(children[_id],msg);
+            try{
+                msg  = my_net::reseave(children[_id]);
+                if(msg == "Ok: 1")
+                    ans = msg;
+            } catch(int){}
+            return ans;
+        }else{
+            return ans;
+        }
+    } 
+
+    std::string Create_child(int child_id,std::string program_path){
+        std::string program_name = program_path.substr(program_path.find_last_of("/") + 1);
+        children[child_id] = new zmq::socket_t(context,ZMQ_REQ);
+        
+        int new_port = my_net::bind(children[child_id],child_id);
+        children_port[child_id] = new_port;
+        int pid = fork();
+        
+        if(pid == 0){
+            execl(program_path.c_str(), program_name.c_str(), std::to_string(child_id).c_str() , std::to_string(new_port).c_str() ,(char*)NULL);
+        }else{
+            std::string child_pid;
+            try{
+                children[child_id]->setsockopt(ZMQ_SNDTIMEO,3000);
+                my_net::send_message(children[child_id],"pid");
+                child_pid = my_net::reseave(children[child_id]);
+            } catch(int){
+                child_pid = "Error: can't connect to child";
+            }
+            return "Ok: " + child_pid;
+        }
+    }
+
+    std::string Pid(){
+        return std::to_string(getpid());
+    }
+
+    std::string Send(std::string str,int _id){
+        if(children.size() == 0){
+            return "Error: now find";
+        }else if(children.find(_id) != children.end()){
+            if(Ping_child(_id) == "Ok: 1"){
+                my_net::send_message(children[_id],str);
+                std::string ans;
+                try{
+                    ans = my_net::reseave(children[_id]);
+                } catch(int){
+                    ans = "Error: now find";
+                }
+                return ans;
+            }
+        }else{
+            std::string ans = "Error: not find";
+            for(auto& child: children ){
+                if(Ping_child(child.first) == "Ok: 1"){
+                    std::string msg = "send " + std::to_string(_id) + " " + str;
+                    my_net::send_message(children[child.first],msg);
+                    try{
+                        msg = my_net::reseave(children[child.first]);
+                    } catch(int){
+                        msg = "Error: not find";
+                    }
+                    if(msg != "Error: not find"){
+                        ans = msg;
+                    }
+                }
+            }
+            return ans;
+        }
+    }
+
+    std::string Remove(){
+        std::string ans;
+        if(children.size() > 0){
+            for(auto& child: children ){
+                if(Ping_child(child.first) == "Ok: 1"){
+                    std::string msg = "remove";
+                    my_net::send_message(children[child.first],msg);
+                    try{
+                        msg = my_net::reseave(children[child.first]);
+                        if(ans.size() > 0)
+                            ans = ans + " " + msg;
+                        else
+                            ans =  msg;
+                    } catch(int){}
+                }
+                my_net::unbind(children[child.first], children_port[child.first]);
+                children[child.first]->close();
+            }
+            children.clear();
+            children_port.clear();
+        }
+        return ans;
+    }
+};       
+\end{lstlisting}
+
+{\large\textbf{worker.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "node.hpp"
+#include "net_func.hpp"
+#include <fstream>
+#include <vector>
+#include <signal.h>
+
+int my_id = 0;
+
+void Log(std::string str){
+    std::string f = std::to_string(my_id) + ".txt";
+    std::ofstream fout(f,std::ios_base::app);
+    fout << str;
+    fout.close();
+}
+
+int main(int argc, char **argv){
+    if(argc != 3){
+        return -1;
+    }
+    
+    Node me(atoi(argv[1]),atoi(argv[2]));
+    std::string prog_path = "./worker";
+    while(1){
+        std::string message;
+        std::string command = " ";
+        message = my_net::reseave(&(me.parent));
+        std::istringstream  request(message);
+        request >> command;
+
+        
+        if(command == "create"){
+            int id_child, id_parent;
+            request >> id_child;
+            std::string ans = me.Create_child(id_child, prog_path);
+            my_net::send_message(&me.parent,ans);
+        } else if(command == "pid"){
+            std::string ans = me.Pid();
+            my_net::send_message(&me.parent,ans);
+        } else if(command == "ping"){
+            int id_child;
+            request >> id_child;
+            std::string ans = me.Ping_child(id_child);
+            my_net::send_message(&me.parent,ans);
+        } else if(command == "send"){
+            int id;
+            request >> id;
+            std::string str;
+            getline(request, str);
+            str.erase(0,1);
+            std::string ans;
+            ans = me.Send(str,id);
+            my_net::send_message(&me.parent,ans);
+        } else if(command == "exec"){
+            std::string str;
+            std::string pattern;
+            request >> str >> pattern;
+            std::vector<int> answers;
+            int start = 0;
+            while(str.find(pattern,start) != -1){
+                start = str.find(pattern,start);
+                answers.push_back(start);
+                start++;
+            }
+            std::string to_send;
+            if(answers.size() == 0){
+                to_send = "-1";
+            }else{
+                to_send = std::to_string(answers[0]);
+                for(int i = 1; i < answers.size();++i){
+                    to_send = to_send + ";" + std::to_string(answers[i]);
+                }
+            }
+            to_send = "Ok:" + std::to_string(me.id) + ":" + to_send;
+            my_net::send_message(&me.parent,to_send);
+        } else if(command == "remove"){
+            std::string ans = me.Remove();
+            ans = std::to_string(me.id) + " " + ans;
+            my_net::send_message(&me.parent, ans);
+            my_net::disconnect(&me.parent, me.parent_port);
+            me.parent.close();
+            break;
+        }
+    }
+    sleep(1);
+    return 0;
+}
+\end{lstlisting}
+
+{\large\textbf{client.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "node.hpp"
+#include "net_func.hpp"
+#include "set"
+#include <signal.h>
+
+
+
+int main(){
+    std::set<int> all_nodes;
+    //std::set<int> not_availvable;
+    std::string prog_path = "./worker";
+    Node me(-1);
+    all_nodes.insert(-1);
+    std::string command;
+    while(std::cin >> command){
+        if(command == "create"){
+            int id_child, id_parent;
+            std::cin >> id_child >> id_parent;
+            if(all_nodes.find(id_child) != all_nodes.end()){
+                std::cout << "Error: Already exists" << std::endl;
+            } else if(all_nodes.find(id_parent) == all_nodes.end()){
+                std::cout << "Error: Parent not found" << std::endl;
+            }else if(id_parent == me.id){
+                std::string ans = me.Create_child(id_child, prog_path);
+                std::cout << ans << std::endl;
+                all_nodes.insert(id_child);
+            } else{
+                std::string str = "create " + std::to_string(id_child);
+                std::string ans = me.Send(str, id_parent);
+                std::cout << ans << std::endl;
+                all_nodes.insert(id_child);
+            }   
+        } else if(command == "ping"){
+            int id_child;
+            std::cin >> id_child;
+            if(all_nodes.find(id_child) == all_nodes.end()){
+                std::cout << "Error: Not found" << std::endl;
+            }else if(me.children.find(id_child) != me.children.end()){
+                std::string ans = me.Ping_child(id_child);
+                std::cout << ans << std::endl;
+            }else{
+                std::string str = "ping " + std::to_string(id_child);
+                std::string ans = me.Send(str, id_child);
+                if(ans == "Error: not find"){
+                    ans = "Ok: 0";
+                }
+                std::cout << ans << std::endl;
+            }
+        }else if(command == "exec"){
+            int id;
+            std::string str;
+            std::string pattern;
+            std::cin >> id >> str >> pattern;
+            std::string msg = "exec " + str + " " + pattern;
+            if(all_nodes.find(id) == all_nodes.end()){
+                std::cout << "Error: Not found" << std::endl;
+            }else{
+                std::string ans = me.Send(msg,id);
+                std::cout << ans << std::endl;
+            }
+            
+        }else if(command == "remove"){
+            int id;
+            std::cin >> id;
+            std::string msg = "remove";
+            if(all_nodes.find(id) == all_nodes.end()){
+                std::cout << "Error: Not found" << std::endl;
+            }else{
+                std::string ans = me.Send(msg,id);
+                if(ans != "Error: not find"){
+                    std::istringstream ids(ans);
+                    int tmp;
+                    while(ids >> tmp){
+                        all_nodes.erase(tmp);
+                    }
+                    ans = "Ok";
+                    if(me.children.find(id) != me.children.end()){
+                        my_net::unbind(me.children[id],me.children_port[id]);
+                        me.children[id]->close();
+                        me.children.erase(id);
+                        me.children_port.erase(id);
+                    }
+                }
+                std::cout << ans << std::endl;
+            }
+        }
+    }
+    me.Remove();
+    return 0;
+}
+\end{lstlisting}
+
+
+\pagebreak
+
+\section{Демонстрация работы программы}
+
+\begin{alltt}
+    botashev@botashev-laptop:~/ClionProjects/os_labs/lab6-8$ ./client 
+create 2 -1
+Ok: 49589
+create 3 2
+Ok: 49593
+create 4 3
+Ok: 49597
+create 5 3
+Ok: 49601
+ping 5
+Ok: 1
+exec 3
+abracadabra
+abra
+Ok:3:0;7
+remove 5
+Ok
+ping 5
+Error: Not found
+remove 3
+ping 3
+Ok
+Error: Not found
+remove 4
+Error: Not found
+\end{alltt}
+
+\pagebreak
+
+\section{Вывод}
+Наряду с каналами и отображаемыми файлами для передачи данных применяются очереди сообщений.
+
+Данная лабораторная работа была направлена на изучение технологий очередей сообщений 
+и сокетов. Я ознакомился и изучил их, реализовав сеть с заданной топологей. При создании я использовал
+библиотеку для передачи сообщений ZeroMQ. ZeroMQ предоставляет простой интерфейс для передачи сообщений и 
+составления топологий разных типов.
+
+Полученные навыки можно применить во многих сферах, так как большинство программ сейчас взаимодействуют по сети.
+При этом ZeroMQ можно применить и для внутреннего межпроцессорного взаимодействия.
+\end{document}

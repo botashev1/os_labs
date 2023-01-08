@@ -1,0 +1,503 @@
+
+\documentclass[pdf, unicode, 12pt, a4paper,oneside,fleqn]{article}
+\usepackage{graphicx}
+\usepackage{upquote}
+\graphicspath{{img/}}
+\usepackage{log-style}
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \bfseries
+
+        {\Large Московский авиационный институт\\ (национальный исследовательский университет)}
+        
+        \vspace{48pt}
+        
+        {\large Факультет информационных технологий и прикладной математики}
+        
+        \vspace{36pt}
+        
+        {\large Кафедра вычислительной математики и~программирования}
+        
+        \vspace{48pt}
+        
+        Лабораторная работа \textnumero 5 по курсу \enquote{Операционные системы}
+
+        \vspace{48pt}
+
+        Создание динамических библиотек. 
+        
+        Создание программ, которые используют функции динамических библиотек.
+    \end{center}
+    
+    \vspace{125pt}
+    
+    \begin{flushright}
+    \begin{tabular}{rl}
+    Студент: & А.\,Р. Боташев \\
+    Преподаватель: & Е.\,С. Миронов \\
+    Группа: & М8О-201Б-21 \\
+    Вариант: & 9 \\
+    Дата: & \\
+    Оценка: & \\
+    Подпись: & \\
+    \end{tabular}
+    \end{flushright}
+    
+    \vfill
+    
+    \begin{center}
+    \bfseries
+    Москва, \the\year
+    \end{center}
+\end{titlepage}
+    
+\pagebreak
+
+\section{Постановка задачи}
+
+Требуется создать динамические библиотеки, которые реализуют определенный функционал. 
+Далее использовать данные библиотеки 2-мя способами:
+
+\begin{itemize}
+    \item Во время компиляции (на этапе «линковки»/linking)
+    \item Во время исполнения программы. Библиотеки загружаются в память с помощью 
+            интерфейса ОС для работы с динамическими библиотеками
+\end{itemize}
+
+В лабораторной работе необходимо получить следующие части:
+
+\begin{itemize}
+    \item Динамические библиотеки, реализующие контракты
+    \item Тестовая программа (программа №1), которая используют одну из библиотек, используя 
+    знания полученные на этапе компиляции.
+    \item Тестовая программа (программа №2), которая загружает библиотеки, используя только их 
+    местоположение и контракты.
+\end{itemize}
+
+Провести анализ двух типов использования библиотек.
+
+Пользовательский ввод должен быть организован следующим образом:
+
+\begin{itemize}
+    \item Команда <<0>>: переключить одну реализацию контракты на другую
+    \item Команда <<1 args>>: вызов первой функции контрактов
+    \item Команда <<2 args>>: вызов второй функции контрактов
+\end{itemize}
+
+Контракты:
+\begin{itemize}
+    \item Подсчет количества простых чисел на промежутке [A; B]
+    \item Отсортировать целочисленный массив
+\end{itemize}
+
+\section{Сведения о программе}
+
+Программа написанна на Си в Unix подобной операционной системе на базе ядра Linux.
+
+Оба контракта реализованы в двух вариантах:
+
+Нахождение простых чисел на промежутке наивным способом(перебором делителей) и решетом Эратосфена
+
+Сортировка массива пузырьком и quick-sort(сортировка Хоара)
+
+Контракты описаны в файле signature.h, а реализация implem1.сpp и implem2.сpp
+
+\begin{enumerate}
+    \item Создание объектных файлов
+    \item Компиляция библиотек с ключем -shared. Получаем динамические библиотеки с расширением .so 
+    \item Линковка библиотеки к необходимой программе
+\end{enumerate}
+
+Для динамической загрузки библиотек используется библиотека dlfcn.h
+
+\section{Общий метод и алгоритм решения}
+
+Программа принимает в себя команды: 
+\begin{itemize}
+    \item В случае команды 1, мы считываем A и B и находим все простые числа на отрезке [A; B].
+    \item В случае команды 2, мы считываем размер массива и сам массив и выводим его в отсортированном виде.
+    \item В случае команды 0, мы закрываем старую библиотеку, открываем вторую и заменяем указатели на функции.
+\end{itemize}
+
+Для завершения программы нужно ввести комбинацию завершения ввода \--- CTRL+D.
+
+\section{Листинг программы}
+
+{\large\textbf{signature.h}}
+
+\begin{lstlisting}[language=C++]
+#ifndef OS_LABS_SIGNATURE_H
+#define OS_LABS_SIGNATURE_H
+
+
+#include <cstddef>
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+extern "C" {
+    int primeCount(int a, int b);
+    std::vector <int> sort(std::vector <int> array, int low, int high);
+}
+
+
+#endif //OS_LABS_SIGNATURE_H
+
+\end{lstlisting}
+
+{\large\textbf{implem1.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "signature.h"
+
+int primeCount(int a, int b) {
+    int res = 0;
+    for (int i = a; i <= b; i++){
+        if (i > 1) {
+            bool is_prime = true;
+            for (int j = 2; j * j <= i; j++) {
+                if (i % j == 0) {
+                    is_prime = false;
+                    break;
+                }
+            }
+            if (is_prime) {
+                res++;
+            }
+        }
+    }
+    return res;
+}
+
+std::vector <int>sort(std::vector <int>array, int low, int high) {
+    for (int i = 0; i < high; i++) {
+        for (int j = 0; j < high - 1; j++) {
+            if (array[j] > array[j + 1]) {
+                std::swap(array[j], array[j + 1]);
+            }
+        }
+    }
+    return array;
+}
+
+\end{lstlisting}
+
+{\large\textbf{implem2.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "signature.h"
+#include <stack>
+
+int primeCount(int a, int b) {
+    int prime[b + 1];
+    for (int i = 0; i <= b; i++) {
+        prime[i] = true;
+    }
+    prime[0] = prime[1] = false;
+    int res = 0;
+    for (int i = 2; i <= b; ++i)
+        if (prime[i]) {
+            if (i * 1ll * i <= b)
+                for (int j = i * i; j <= b; j += i)
+                    prime[j] = false;
+
+            res += (i >= a);
+        }
+    return res;
+}
+
+std::vector <int> sort(std::vector <int>array, int low, int high) {
+    int i = low;
+    int j = high;
+    int pivot = array[(i + j) / 2];
+
+    while (i <= j)
+    {
+        while (array[i] < pivot)
+            i++;
+        while (array[j] > pivot)
+            j--;
+        if (i <= j)
+        {
+            std::swap(array[i], array[j]);
+            i++;
+            j--;
+        }
+    }
+    if (j > low)
+        array = sort(array, low, j);
+    if (i < high)
+        array = sort(array, i, high);
+
+    return array;
+}
+
+\end{lstlisting}
+
+{\large\textbf{main_static.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include <iostream>
+#include "signature.h"
+
+
+int main() {
+    int command;
+    while (std::cin >> command) {
+        if (command == 1) {
+            int a, b;
+            std::cin >> a >> b;
+            if (a > b){
+                std::cout << R"("a" have to be less or equal then "b"\n)";
+            }
+            else{
+                std::cout << primeCount(a, b) << "\n";
+            }
+
+        } else if (command == 2) {
+            int n;
+            std::cin >> n;
+            std::vector <int> arr(n);
+            for (int i = 0; i < n; i++){
+                std::cin >> arr[i];
+            }
+            arr = sort(arr, 0, n);
+
+            for (int i = 0; i < n; i++){
+                std::cout << arr[i] << " ";
+            }
+            std::cout << "\n";
+        } else {
+            std::cout << "you have to enter 1 or 2" << std::endl;
+        }
+    }
+}
+
+\end{lstlisting}
+
+{\large\textbf{main_dynamic.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include <array>
+#include <cstdio>
+#include <iostream>
+#include <cstdlib>
+#include <dlfcn.h>
+#include <string>
+#include <vector>
+
+
+int main() {
+    const std::vector <std::string> LIB = {"./libd1_dynamic.so", "./libd2_dynamic.so"};
+    const std::vector <std::string> FUNC_NAME = {"primeCount", "sort"};
+    int curlib = 0;
+    int (*primeCount)(int a, int b);
+    std::vector <int> (*sort)(std::vector <int>array, int low, int high);
+    void* handle = dlopen(LIB[curlib].c_str(), RTLD_LAZY);
+    if (handle == nullptr) {
+        std::cout << "Fail dlopen\n";
+        return EXIT_FAILURE;
+    }
+    primeCount = ((int (*)(int, int)) dlsym(handle, FUNC_NAME[0].c_str()));
+    sort = (std::vector <int>(*)(std::vector <int>, int, int))dlsym(handle, FUNC_NAME[1].c_str());
+    int command;
+    while (std::cin >> command) {
+        if (command == 1) {
+            int a, b;
+            std::cin >> a >> b;
+            if (a > b){
+                std::cout << R"("a" have to be less or equal then "b"\n)";
+            }
+            else{
+                std::cout << primeCount(a, b) << "\n";
+            }
+        } else if (command == 2) {
+            int n;
+            std::cin >> n;
+            std::vector <int>arr(n);
+            for (int i = 0; i < n; i++){
+                std::cin >> arr[i];
+            }
+            sort(arr, 0, n);
+
+            for (int i = 0; i < n; i++){
+                std::cout << arr[i] << " ";
+            }
+            std::cout << "\n";
+        } else if (command == 0) {
+            dlclose(handle);
+            curlib ^= 1;
+            void* handle = dlopen(LIB[curlib].c_str(), RTLD_LAZY);
+            if (handle == nullptr) {
+                std::cout << "Fail dlopen\n";
+                return EXIT_FAILURE;
+            }
+            primeCount = ((int (*)(int, int)) dlsym(handle, FUNC_NAME[0].c_str()));
+            sort = (std::vector <int>(*)(std::vector <int>, int, int))dlsym(handle, FUNC_NAME[1].c_str());
+        } else {
+            std::cout << "you have to enter 0, 1 or 2" << std::endl;
+        }
+    }
+    dlclose(handle);
+}
+
+\end{lstlisting}
+
+\pagebreak
+
+\section{Демонстрация работы программы}
+
+
+{\scriptsize
+\begin{verbatim}
+
+botashev@botashev-laptop:~/ClionProjects/os_labs/tests$ cat lab5_test.cpp
+#include <fstream>
+#include <gtest/gtest.h>
+#include <string>
+#include <dlfcn.h>
+#include <signature.h>
+
+
+TEST(Lab5Test, DynamicTest) {
+
+    const std::vector <std::string> FUNC_NAME = {"primeCount", "sort"};
+
+    std::vector < std::vector <int> > input1 = {{1, 10}, {1, 100}, {107, 107}, {100, 105}};
+
+    std::vector < std::vector <int> > input2 = {
+            {3, 2, 1, 4, 5},
+            {100, -1, 0},
+            {1, 1, 1, 1, 1},
+            {1000000},
+            {-1919, -66666, -789}
+    };
+
+    std::vector <int> output1 = {4, 25, 1, 2};
+
+    std::vector < std::vector <int> > output2= {
+            {1, 2, 3, 4, 5},
+            {-1, 0, 100},
+            {1, 1, 1, 1, 1},
+            {1000000},
+            {-66666, -1919, -789}
+    };
+
+
+    int (*primeCountOne)(int a, int b);
+    std::vector <int> (*sortOne)(std::vector <int>array, int low, int high);
+    void* handleOne = dlopen(
+            getenv("PATH_TO_libd1_dynamic.so"), RTLD_LAZY);
+    ASSERT_NE(handleOne, nullptr);
+
+
+    int (*primeCountTwo)(int a, int b);
+    std::vector <int>(*sortTwo)(std::vector <int>array, int low, int high);
+    void* handleTwo = dlopen(getenv("PATH_TO_libd2_dynamic.so"), RTLD_LAZY);
+    ASSERT_NE(handleTwo, nullptr);
+
+
+    primeCountOne = ((int (*)(int, int)) dlsym(handleOne, FUNC_NAME[0].c_str()));
+    primeCountTwo = ((int (*)(int, int)) dlsym(handleTwo, FUNC_NAME[0].c_str()));
+    sortOne = (std::vector <int>(*)(std::vector <int>, int, int))dlsym(handleOne, FUNC_NAME[1].c_str());
+    sortTwo = (std::vector <int>(*)(std::vector <int>, int, int))dlsym(handleTwo, FUNC_NAME[1].c_str());
+
+
+    for (size_t i = 0; i < input1.size(); i++) {
+        auto primeCountOutOne = primeCountOne(input1[i][0], input1[i][1]);
+        auto primeCountOutTwo = primeCountTwo(input1[i][0], input1[i][1]);
+        EXPECT_EQ(primeCountOutOne, output1[i]);
+        EXPECT_EQ(primeCountOutTwo, output1[i]);
+    }
+
+    for (size_t i = 0; i < input2.size(); i++) {
+        auto sortOutOne = sortOne(input2[i], 0, (int)input2[i].size());
+        auto sortOutTwo = sortTwo(input2[i], 0, (int)input2[i].size() - 1);
+
+
+        EXPECT_EQ(sortOutOne, output2[i]);
+        EXPECT_EQ(sortOutTwo, output2[i]);
+    }
+}
+
+TEST(Lab5Test, StaticOneTest) {
+
+    std::vector < std::vector <int> > input1 = {{1, 10}, {1, 100}, {107, 107}, {100, 105}};
+
+    std::vector < std::vector <int> > input2 = {
+            {3, 2, 1, 4, 5},
+            {100, -1, 0},
+            {1, 1, 1, 1, 1},
+            {1000000},
+            {-1919, -66666, -789}
+    };
+
+    std::vector <int> output1 = {4, 25, 1, 2};
+
+    std::vector < std::vector <int> > output2= {
+            {1, 2, 3, 4, 5},
+            {-1, 0, 100},
+            {1, 1, 1, 1, 1},
+            {1000000},
+            {-66666, -1919, -789}
+    };
+
+    for (int i = 0; i < input1.size(); i++) {
+        auto primeCountOut = primeCount(input1[i][0], input1[i][1]);
+        EXPECT_EQ(primeCountOut, output1[i]);
+    }
+
+    for (size_t i = 0; i < input2.size(); i++) {
+        auto sortOut = sort(input2[i], 0, (int)input2[i].size());
+
+        for (int j = 0; j < output2[i].size(); j++){
+            EXPECT_EQ(sortOut[j], output2[i][j]);
+        }
+    }
+}
+botashev@botashev-laptop:~/ClionProjects/os_labs/tests$ ./../cmake-build-debug/tests/lab5_test 
+Running main() from /home/botashev/ClionProjects/os_labs/cmake-build-debug/_deps/googletest-src/googletest/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from Lab5Test
+[ RUN      ] Lab5Test.DynamicTest
+[       OK ] Lab5Test.DynamicTest (1 ms)
+[ RUN      ] Lab5Test.StaticOneTest
+[       OK ] Lab5Test.StaticOneTest (0 ms)
+[----------] 2 tests from Lab5Test (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (1 ms total)
+[  PASSED  ] 2 tests.
+\end{verbatim}
+}
+
+\pagebreak
+
+\section{Вывод}
+
+Лабораторная работа была направлена на изучение динамических библиотек в Unix подобных операционных
+системах. Для изучения создания и работы с ними мною было написанно 2 программ: одна
+подлючала динамичкие библиотеки на этапе компиляции, а вторая во время исполнения.
+
+Динамические библиотеки содержат функционал отдельно от программы и прередают его
+непосредственно во время исполнения. Из плюсов такого подхода можно выделить, что 
+во-первых, в таком случае размер результирующей программы меньше,во-вторых, одну и ту же библиотеку 
+можно использовать в нескольких программах не встраивая в код, чем можно также добиться снижения
+общего занимаемого пространства на диске, и в-третьих, что после исправления ошибок
+в библиотеке не нужно перекомпилировать все программы, достаточно перекомпилировать саму библиотеку.
+
+Однако у динамических библиотек есть и недостатки. Первый заключается в том, что
+вызов функции из динамической библиотеки происходит медленнее. Второй, что
+мы не можем подправить функционал библиотеки под конкретную программу не зацепив
+при этом других программ, работающих с этой библиотекой. И в-третьих, уже скомпилированная
+программа не будет работать на аналогичной системе без установленной динамической библиотеки.
+
+Тем не менее плюсы динамичеких библиотек исчерпывают их минусы в большенстве задач, 
+обратных случаях лучше обратиться к статическим библиотекам. В наше время с высокими мощностями 
+вычислительных систем становится более важным сэкономить объем памяти, используемый программой,
+чем время обращения к функции. Поэтому динамические библиотеки используются в большенстве 
+современных программ.
+\end{document}
